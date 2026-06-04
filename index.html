@@ -1084,17 +1084,24 @@ footer{background:var(--navy-xl);color:rgba(255,255,255,.5);padding:48px 5% 22px
   }
 
   async function fetchRetry(url,body,tries=3,delay=800){
+    // Apps Script POST harus pakai mode no-cors karena response selalu opaque (redirect)
+    // no-cors tidak bisa membaca response, tapi data tetap terkirim ke server
     for(let i=0;i<tries;i++){
       try{
         const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
         let timer;
         if(ctrl){timer=setTimeout(()=>ctrl.abort(),15000);}
-        const opts={method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)};
+        const opts={
+          method:'POST',
+          mode:'no-cors',
+          headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body:JSON.stringify(body)
+        };
         if(ctrl)opts.signal=ctrl.signal;
-        const res=await fetch(url,opts);
+        await fetch(url,opts);
         if(ctrl)clearTimeout(timer);
-        if(res.ok||res.status===302)return true;
-        throw new Error('HTTP '+res.status);
+        // Dengan no-cors, fetch tidak throw = pengiriman berhasil
+        return true;
       }catch(e){
         if(i===tries-1)throw e;
         await new Promise(resolve=>setTimeout(resolve,delay*Math.pow(2,i)));
